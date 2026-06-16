@@ -1,31 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import Navbar from './components/Navbar';
-import Sidebar from './components/Sidebar';
-import ProductList from './components/ProductList';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
+import Header from './components/Header';
+import Banner from './components/Banner';
+import Sidebar from './components/Sidebar';
+import ProductsGrid from './components/ProductsGrid';
+import Cart from './components/Cart';
+import useProductStore from './store/productStore';
 
 function App() {
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Your useEffect code remains exactly here...
+  const {
+    setProducts,
+    setCategories,
+    filterProducts,
+    selectedCategory,
+    searchTerm,
+    products,
+  } = useProductStore();
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const productsRes = await axios.get('https://dummyjson.com/products?limit=100');
-        setProducts(productsRes.data.products);
+        const products = productsRes.data.products;
+        setProducts(products);
 
         const categoriesRes = await axios.get('https://dummyjson.com/products/categories');
-        if (categoriesRes.data && typeof categoriesRes.data[0] === 'object') {
-          const categoryStrings = categoriesRes.data.map(cat => cat.slug || cat.name || cat);
-          setCategories(categoryStrings);
-        } else {
-          setCategories(categoriesRes.data);
-        }
+        setCategories(categoriesRes.data);
+
+        filterProducts(products, null, '');
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching data:', err);
       } finally {
         setIsLoading(false);
       }
@@ -33,38 +41,38 @@ function App() {
     fetchData();
   }, []);
 
-  // Filter products based on selected category
-  const filteredProducts = selectedCategory === 'all'
-    ? products
-    : products.filter(p => p.category === selectedCategory);
+  useEffect(() => {
+    filterProducts(products, selectedCategory, searchTerm);
+  }, [selectedCategory, searchTerm, products]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Navbar sits safely alone at the very top */}
-      <Navbar />
-
-      {/* Main Container splits Sidebar and Products side-by-side */}
-      <div className="flex flex-1 max-w-7xl w-full mx-auto p-4 gap-6">
-        
-        {/* Left Side: Vertical Sidebar */}
-        <aside className="w-64 shrink-0 hidden md:block">
-          <Sidebar 
-            categories={categories} 
-            setSelectedCategory={setSelectedCategory} 
-            activeCategory={selectedCategory} 
+    <div className="bg-gray-50 min-h-screen">
+      <Header onCartClick={() => setIsCartOpen(true)} />
+      <Banner />
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <h2 className="text-3xl font-bold mb-8 border-l-4 border-primary pl-4">
+          SEE OUR PRODUCTS
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
           />
-        </aside>
-
-        {/* Right Side: Product Grid */}
-        <main className="flex-1">
-          {isLoading ? (
-            <div className="text-center py-10 font-semibold">Loading products...</div>
-          ) : (
-            <ProductList products={filteredProducts} />
-          )}
-        </main>
-
-      </div>
+          <div className="md:col-span-3">
+            {isLoading ? (
+              <div className="text-center py-16">
+                <p className="text-gray-500 text-xl">Loading products...</p>
+              </div>
+            ) : (
+              <ProductsGrid />
+            )}
+          </div>
+        </div>
+      </main>
+      <footer className="bg-primary text-white text-center py-6 mt-12">
+        <p className="font-semibold">&copy; 2026 ProjUp. All rights reserved.</p>
+      </footer>
+      <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
   );
 }
